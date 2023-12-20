@@ -1,0 +1,31 @@
+# Version of docker-compose file
+version: '3'
+
+# services means which all services we want to run, inside this we define number of containers to run like if i define three services then 3 different containers
+# for each 3 different service names will up and running. Here we define steps from building an image to defining port map and various other properties which
+# we do in Dockerfile but here we can define steps for multiple services instead of creating different Dockerfiles for different services.
+services:
+  myservice1:
+    image: fapp:0.0
+    expose:
+      - 8844
+    ports:
+      - "8844:8844"
+    
+  myservice2:
+    build: /home/slim5/myPractice/docker
+    container_name: copyservice
+    image: firstapp:0.1
+    expose:
+      - 8844
+    ports:
+      - "8855:8844"
+
+  myser3:
+    image: bitnami/nginx
+    expose:
+      - 80
+    ports:
+      - "8866:80"
+
+

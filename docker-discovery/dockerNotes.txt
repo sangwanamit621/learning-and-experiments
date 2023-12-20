@@ -1,0 +1,78 @@
+# If we want to filter the images based on given image name, use filter in command
+docker images --filter "reference=first-docker-app"
+
+# we can write Dockerfile commands in lower and upper case but upper case is more preferred
+
+# FROM - Defines a base image, it can be pulled from docker hub. A FROM statement defines which image to download and start from. 
+# It must be the first command in your Dockerfile. A Dockerfile can have multiple FROM statements which means the Dockerfile 
+# produces more than one image.
+FROM python:3.8.10-alpine
+
+
+# LABEL - This statement is a kind of documentation, which defines the author who is creating this Dockerfile 
+# or who should you contact if it has bugs. (Optional)
+LABEL Amit Sangwan
+
+# RUN - This command will execute the given statement . The RUN statement defines running a command through the shell, 
+# waiting for it to finish, and saving the result. It tells what process will be running inside the container at the run time.
+RUN mkdir /project
+
+
+# this will copy the files from local to image
+# COPY ./requirements.txt /project/requirements.txt  # to copy specific file
+COPY . /project
+
+# this will make the /project as working directory for the image and everything will be executed from this point in the image terminal/CMD
+workdir /project
+
+RUN ls
+
+# RUN will execute this command to install libraries
+Run pip3 install -r requirements.txt
+
+# CMD will execute commands in terminal of image we can override this command during container run time
+CMD ["python3","app.py"]
+
+# ENTRYPOINT will execute commands in terminal of image we cannot override this command during container run time but pass additional paramerters
+# this command is used when we dont want anyone to override a specific command during container run time
+ENTRYPOINT ["python3","app.py"]
+
+Difference between RUN, CMD and ENTRYPOINT
+RUN:
+    1. The RUN instruction is used to execute commands during the image build process. These commands are run at build time, not runtime.
+    2. It is typically used for actions that need to be performed when building the Docker image, such as installing packages, setting up 
+       the environment, and downloading dependencies.
+    3. The result of the RUN instruction is saved as a new layer in the Docker image.
+    4. Any changes made to the filesystem during the RUN instruction are persisted in the image.
+
+
+ENTRYPOINT:
+    1. The ENTRYPOINT instruction specifies the command to be executed when a container is started, just like CMD. 
+        However, there is a crucial difference: the ENTRYPOINT command is not automatically overridden at runtime.
+    2. If you use ENTRYPOINT, any additional commands provided when starting the container are treated as 
+        arguments to the ENTRYPOINT command, rather than replacing it.
+    3. The ENTRYPOINT instruction is typically used when you want to define a fixed main command or script for your container, 
+        and you want to ensure that it is always executed, with additional arguments optionally provided by users at runtime.
+
+CMD:
+    1. The CMD instruction specifies the default command to be executed when a container is started from the image.
+    2. You can only have one CMD instruction in a Dockerfile. If multiple CMD instructions are present, only the last one takes effect.
+    3. The CMD instruction is often used to define the primary process that runs in the container.
+    4. The command specified by CMD can be overridden at runtime by providing a command when starting the container. This allows you to 
+        customize the behavior of the container without modifying the Dockerfile.
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+docker-compose
+
+Docker Compose is used to run multiple containers as a single service. For example, suppose you had an application which required kafka, python and MySQL, 
+you could create one file which would start all the containers as a service without the need to start each one separately. Primary purpopse of using
+docker-compose is to manage multiple container using single file. Suppose for our application, we are using kafka, mongoDB, spark and python application
+then we have to manage container for each application. To make this easy, we can define docker-compose.yml file where we define every requirement in this
+file for each service and run this single file to manage them.
+
+version: "3.7" -> we define the version of docker-compose.yml file
+services: -> we define the services which we want to run and their configrations and steps
+there are similar commands we use in Dockerfile, but they become single word like in Dockerfile we say -p here we use ports, in build we define Dockerfile path
+here as well we use build and give Dockerfile path to build the image
