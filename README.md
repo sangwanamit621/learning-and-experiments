@@ -16,8 +16,6 @@ Explore the repository through our Tech Stack Table of Contents. Each directory 
 |Tech Stack	|Description|
 -----|--------------------
 |🚀 Spark|	Notes and experiments on Apache Spark|
-|🐍 Python|	Pythonic adventures and coding escapades|
-|🧠 Machine Learning	|Unraveling the mysteries of ML algorithms|
 |⚙️ Docker|	Containerized discoveries and best practices|
 
 ## 🤔 Join the Conversation
