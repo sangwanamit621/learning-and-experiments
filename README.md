@@ -15,8 +15,9 @@ Explore the repository through our Tech Stack Table of Contents. Each directory 
 
 |Tech Stack	|Description|
 -----|--------------------
-|🚀 Airflow|	Experimental basic project using Airflow|
-|⚙️ Docker|	Containerized discoveries and best practices|
+|🚀 Airflow |	Experimental basic project using Airflow |
+|⚙️ Docker |	Containerized discoveries and best practices |
+|📓 Cassandra | Various basic-level operations in Cassandra using Python |
 
 ## 🤔 Join the Conversation
 Ready to share your insights or suggestions? This repository is a collaborative space where the community plays a crucial role. Open issues, share your thoughts, or even document your own learning journeys. Let's build a vibrant community of tech enthusiasts!
