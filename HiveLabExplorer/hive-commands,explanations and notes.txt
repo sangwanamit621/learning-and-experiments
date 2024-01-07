@@ -1,0 +1,875 @@
+We will perform various operations related to hive
+# Important Note: While loading data from json file, never keep blank lines after or before any record else you will face error or get duplicate records. Similarly, for csv file if there will be blank lines then null values will be added in the hive table
+
+# Connecting to hive using beeline in GCP dataproc
+# beeline -u jdbc:hive2://localhost:10000/default -n UserName -p Password -d org.apache.hive.jdbc.HiveDriver
+beeline -u jdbc:hive2://localhost:10000/default -n sant621@cluster-a3-m -d org.apache.hive.jdbc.HiveDriver
+
+# Create a database
+# Note: We cannot use - in the name of table instead use _
+CREATE DATABASE test_db;
+
+# List databases
+SHOW DATABASES;
+
+# Drop database
+DROP DATABASE test_db;
+
+# Use current database to create tables 
+USE my_db;
+
+# Create table in database
+CREATE TABLE emp (id INT, name STRING, dob DATE, dept_id INT);
+
+# Insert data into table
+# Hive expects date values in YYYY-MM-DD format
+INSERT INTO emp VALUES(1,'AMIT','1998-10-12',1);
+
+# Insert multiple values at once
+INSERT INTO emp VALUES (2,'ANK','2000-07-03',2),(3,'RAM','1990-03-03',4);
+
+# View Schema of table
+DESCRIBE emp;
+
+# View detailed description about the table
+DESCRIBE FORMATTED emp;
+
+Output:
+---------------------------------------------------------------------------------------
+# col_name              data_type               comment             
+id                      int                                         
+name                    string                                      
+dob                     date                                        
+dept_id                 int                                         
+                 
+# Detailed Table Information             
+Database:               my_db                    
+OwnerType:              USER                     
+Owner:                  abc                      
+CreateTime:             Sat Sep 23 20:43:24 IST 2023     
+LastAccessTime:         UNKNOWN                  
+Retention:              0                        
+Location:               hdfs://localhost/user/hive/warehouse/my_db.db/emp        
+Table Type:             MANAGED_TABLE            
+Table Parameters:                
+        COLUMN_STATS_ACCURATE   {\"BASIC_STATS\":\"true\"}
+        bucketing_version       2                   
+        numFiles                1                   
+        numRows                 1                   
+        rawDataSize             11                  
+        totalSize               12                  
+        transient_lastDdlTime   1695482175          
+                 
+# Storage Information            
+SerDe Library:          org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe       
+InputFormat:            org.apache.hadoop.mapred.TextInputFormat         
+OutputFormat:           org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat       
+Compressed:             No                       
+Num Buckets:            -1                       
+Bucket Columns:         []                       
+Sort Columns:           []                       
+Storage Desc Params:             
+        serialization.format    1                   
+---------------------------------------------------------------------------------------
+
+# view records from table
+SELECT * FROM emp;
+
+# Property to view the column name in hive cli
+set hive.cli.print.header=true;
+
+# Creating a new table where we will load data from a local csv file
+CREATE TABLE dept (id INT, name STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';
+
+# ROW FORMAT DELIMITED indicates that fields in each row are separated by a specified delimiter.
+# FIELDS TERMINATED BY ',' specifies that the delimiter used to separate fields in each row is a comma ','.
+
+
+# Loading data into the table from locally stored file. LOCAL refers that file is stored in local system of machine and file:// specifies URI of local system
+LOAD DATA LOCAL INPATH 'file:///config/workspace' INTO TABLE dept;
+
+# Loading data into the table from hdfs stored file
+# Note: When we LOAD DATA from hdfs location of machine then data is moved from current location to hive dataware house location
+LOAD DATA INPATH '/data/dept_head/' INTO TABLE dept_head;
+
+# Overwritting records in table
+INSERT OVERWRITE TABLE emp SELECT id,name,'2023-12-20' AS dob, dept_id from emp where id=1;
+
+# Appending records in table
+INSERT INTO TABLE emp SELECT id,name,'2023-12-20' AS dob, dept_id FROM emp1;
+
+# Note: into refers append and overwrite refers cleaning old records and then insert new records
+
+# Set formatting options in hive to view column names
+SET hive.cli.print.header=true;
+SET hive.resultset.use.unique.column.names=false; # to show only column name instead of tableName.ColumnName
+
+
+# Creating external tables in hive
+CREATE EXTERNAL TABLE office (id int, city string) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LOCATION '/data/office/'
+
+Internal or Managed Table: Hive Manages this table, creates metadata in hive warehouse and data is stored in hive dataware house location. When we drop the internal table then
+we lose the data as well.
+External table: Hive Manages this table and creates metadata in hive warehouse but data remains at the source location only instead of moved to hive dataware house location. When we 
+drop the external table then we dont lose the data. So if data is critical and we cannot lose it then we use external table. Accessing data from external sources can introduce 
+network latency and overhead, which may make queries on external tables slower compared to managed tables where data is stored locally.
+
+# DESCRIBE FORMATTED output for external table
+------------------------------------------------------------------------------------------
+col_name        data_type       comment
+# col_name              data_type               comment             
+id                      int                                         
+city                    string                                      
+                 
+# Detailed Table Information             
+Database:               test                     
+OwnerType:              USER                     
+Owner:                  abc                      
+CreateTime:             Sun Sep 24 11:52:04 IST 2023     
+LastAccessTime:         UNKNOWN                  
+Retention:              0                        
+Location:               hdfs://localhost/data/dept_head  
+Table Type:             EXTERNAL_TABLE           
+Table Parameters:                
+        EXTERNAL                TRUE                
+        bucketing_version       2                   
+        numFiles                1                   
+        totalSize               39                  
+        transient_lastDdlTime   1695536524          
+                 
+# Storage Information            
+SerDe Library:          org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe       
+InputFormat:            org.apache.hadoop.mapred.TextInputFormat         
+OutputFormat:           org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat 
+Compressed:             No                       
+Num Buckets:            -1                       
+Bucket Columns:         []                       
+Sort Columns:           []                       
+Storage Desc Params:             
+        field.delim             ,                   
+        serialization.format    ,  
+
+------------------------------------------------------------------------------------------
+
+
+
+# In Internal table, we get Table Type: MANAGED_TABLE  and Location: hdfs://localhost/user/hive/warehouse/my_db.db/emp  
+# In External table, we get Table Type: EXTERNAL_TABLE and Location: hdfs://localhost/data/dept_head
+
+
+# Creating a table with collection data_type array
+
+CREATE TABLE skill(id int,name string, skills array<string>) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' COLLECTION ITEMS TERMINATED BY '|';
+
+
+---------------------------------------------------------------------------------
+id      name    skills
+1       Amit    ["Python","Kafka","Spark","SQL","Hadoop"]
+2       Ank     ["Java","Docker","NoSQL"]
+3       Ram     ["SQL","Hive","Docker"]
+-----------------------------------------------------------------------------------
+
+# Accessing element of collection item 
+select id,name,skills[0] as best_skill from skill;
+
+# Some array related functions
+SELECT id,name,skills, SIZE(skills) as totalSkills, SORT_ARRAY(skills) AS sortedSkills, ARRAY_CONTAINS(skills,'Hadoop') AS knowHadoop FROM skill;
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+id      name    skills                                     totalSkills  sortedSkills                                    knowHadoop                   
+1       Amit    ["Hadoop","Kafka","Python","SQL","Spark"]       5       ["Hadoop","Kafka","Python","SQL","Spark"]       true
+2       Ank     ["Docker","Java","NoSQL"]                       3       ["Docker","Java","NoSQL"]                       false
+3       Ram     ["Docker","Hive","SQL"]                         3       ["Docker","Hive","SQL"]                         false
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+# Creating a table with collection data_type map
+CREATE TABLE map_dt (name string, details MAP<STRING,STRING>) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' COLLECTION ITEMS TERMINATED BY '|' MAP KEYS TERMINATED BY ':';
+
+# Functions related to map
+SELECT name, details, SIZE(details) AS totalSize, MAP_KEYS(details) AS keys, MAP_VALUES(details) AS values from map_dt;
+
+--------------------------------------------------------------------------------------------
+name            details                size          keys                   values
+Amit    {"age":"24","gender":"male"}    2       ["age","gender"]        ["24","male"]
+Ank     {"age":"27","gender":"female"}  2       ["age","gender"]        ["27","female"]
+Kum     {"age":"22","gender":"female"}  2       ["age","gender"]        ["22","female"]
+--------------------------------------------------------------------------------------------
+
+
+# storing data in parquet format in hive if source file is in csv format
+# Steps:
+# 1. First create a table with csv file format
+# 2. load data into the table
+# 3. create a table which will load data from table which stores data in csv format
+
+create table csv_tb(id int, name string) row format delimited fields terminated by ',';
+load data inpath 'file:///home/amit/data.csv' into table csv_tb;
+
+# we can use same method to create backup of a table
+create table parquet_tb stored as parquet as select * from csv_tb;
+
+# storing data in ORC format
+create table data_orc STORED AS ORC as select * from csv_tb;
+
+# Note: Hive works in more efficient manner for ORC formatted data as compare to any other data format. Similary, spark works in most efficient manner with parquet format.
+
+
+# After creating the table in parquet and ORC formats we can delete the orignial table
+drop table csv_tb;
+
+# Using custom library for serde operations
+# download jar catalog for serde Library to avoid library related error
+wget https://repo1.maven.org/maven2/org/apache/hive/hcatalog/hive-hcatalog-core/0.14.0/hive-hcatalog-core-0.14.0.jar
+
+# then in hive run the command: 
+# add jar JarFilePath;
+add jar file:///config/workspace/hive-hcatalog-core-0.14.0.jar;
+
+# create table with custom serde library properties 
+create table spl(name string, address_role string) row format serde "org.apache.hadoop.hive.serde2.OpenCSVSerde" with serdeproperties("separatorChar"=",","quoteChar="\"","escapeChar"="\\") stored as textfile  tblproperties("skip.header.line.count"="1");
+
+#setting hive property to see the column names
+set hive.cli.print.header=true;
+
+# fetching the records
+select * from spl;
+
+# output:
+---------------------------
+sp.name sp.address_role
+amit    haryana,india,"DE"
+ram     delhi,india,"SDE"
+shiv    up,india,"DS"
+---------------------------
+
+
+# using serde library to load json data
+create table json(name string, skills array<string>,details map<string,string>) row format serde 'org.apache.hive.hcatalog.data.JsonSerDe' stored as textfile;
+
+load data inpath 'file:///config/workspace/json_data.csv' into table json;
+
+select * from json;
+
+#output
+---------------------------
+json.name       json.skills             json.details
+amit    ["python","hadoop","hive"]      {"age":"24","gender":"male"}
+ram     ["python","spark","hive"]       {"age":"24","gender":"male"}
+tia     ["airflow","hadoop","spark"]    {"age":"24","gender":"female"}
+---------------------------
+
+
+
+create table sales ( ORDERNUMBER int, QUANTITYORDERED int, PRICEEACH float, ORDERLINENUMBER int, SALES float, STATUS string, QTR_ID int, MONTH_ID int, YEAR_ID int, PRODUCTLINE string, MSRP int, PRODUCTCODE string, PHONE string, CITY string, STATE string, POSTALCODE string, COUNTRY string, TERRITORY string, CONTACTLASTNAME string, CONTACTFIRSTNAME string, DEALSIZE string ) row format delimited fields terminated by ',' tblproperties("skip.header.line.count"="1") ;
+
+# loading data into table
+load data local inpath '/home/sangwanamit621/sales_order_data.csv' into table sales;
+
+# Important properties related to reducer 
+# In order to change the average load for a reducer (in bytes):                                                                                 
+  set hive.exec.reducers.bytes.per.reducer=<number>                                                                                           
+# In order to limit the maximum number of reducers:                                                                                             
+  set hive.exec.reducers.max=<number>                                                                                                         
+# In order to set a constant number of reducers:                                                                                                
+  set mapreduce.job.reduces=<number> 
+
+# setting number of reducers manually
+set mapreduce.job.reduces = 3
+
+# aggregation, group by and order by operations
+select YEAR_ID as year, sum(SALES) as totalSalesAmount from sales group by YEAR_ID order by YEAR_ID desc;
+
+# order by vs sort by
+# In order by, number of reducers will be always 1 where as in sort by number of reducers can have manually given value(in our case 3) or number of reducers created by hive 
+# order by gives output which is sorted for complete table where as sort by gives output which is sorted per reducer. For example: order by will give output like 1,1,2,3,3,4,5,5,5,6,7,7 where as if there are 3 reducers and we assume each reducer handles 4 values in this group(1,2,3,6),(3,4,5,7),(1,5,5,7) then output will be 1,2,3,6,3,4,5,7,1,5,5,7 so these values are sorted on reducer level but these are not sorted on table level like we get in order by
+
+# creating a new table from output of aggregation operation
+create table city_wise_sales as select city, round(sum(sales),2) as total_sales_amount from sales group by city;
+
+# using order by 
+select * from city_wise_sales order by city;
+
+#Output:
+-------------------------------
+city_wise_sales.city    city_wise_sales.total_sales_amount
+Aaarhus         100595.55
+Allentown       122138.14
+Barcelona       78411.86
+Bergamo         137955.72
+Bergen          111640.28
+Boras           134259.33
+Boston          154069.66
+Brickhaven      165255.2
+Bridgewater     101894.79
+Brisbane        50218.51
+Bruxelles       74972.52
+Burbank         46084.64
+Burlingame      120783.07
+Cambridge       139244.0
+Charleroi       33440.1
+Chatswood       151570.98
+Cowes           78240.84
+Dublin          57756.43
+Espoo           113961.15
+Frankfurt       85171.59
+Gensve          117713.56
+Glen Waverly    64591.46
+Glendale        66423.77
+Graz            52263.9
+Helsinki        111250.38
+Kobenhavn       145041.6
+Koln            100306.58
+Las Vegas       82751.08
+Lille           69052.41
+Liverpool       118008.27
+London          124823.54
+Los Angeles     48048.46
+Lule            75754.88
+Lyon            142874.25
+Madrid          1082551.44
+Makati City     94015.73
+Manchester      157807.81
+Marseille       74936.14
+Melbourne       200995.41
+Minato-ku       120562.74
+Montreal        74204.79
+Munich          34993.92
+NYC             560787.77
+Nantes          204304.86
+Nashua          131685.3
+New Bedford     207874.86
+New Haven       79472.07
+Newark          83228.19
+North Sydney    153996.13
+Osaka           67605.07
+Oslo            79224.23
+Oulu            104370.38
+Paris           268944.68
+Pasadena        104561.96
+Philadelphia    151189.13
+Reggio Emilia   142601.33
+Reims           135042.94
+Salzburg        149798.63
+San Diego       87489.23
+San Francisco   224358.68
+San Jose        160010.27
+San Rafael      654858.06
+Sevilla         54723.62
+Singapore       288488.41
+South Brisbane  59469.12
+Stavern         116599.19
+Strasbourg      80438.48
+Torino          94117.26
+Toulouse        70488.44
+Tsawassen       74634.85
+Vancouver       75238.92
+Versailles      64834.32
+White Plains    85555.99
+-------------------------------
+
+# using sort by 
+select * from city_wise_sales sort by city;
+
+#output
+------------------------------------------------------------------------
+city_wise_sales.city    city_wise_sales.total_sales_amount
+Bergen          111640.28
+Boras           134259.33
+Boston          154069.66
+Brickhaven      165255.2
+Bridgewater     101894.79
+Brisbane        50218.51
+Charleroi       33440.1
+Dublin          57756.43
+Espoo           113961.15
+Glen Waverly    64591.46
+Graz            52263.9
+Helsinki        111250.38
+Liverpool       118008.27
+Los Angeles     48048.46
+Lyon            142874.25
+Makati City     94015.73
+Melbourne       200995.41
+Minato-ku       120562.74
+Montreal        74204.79
+Munich          34993.92
+New Bedford     207874.86
+New Haven       79472.07
+North Sydney    153996.13
+Salzburg        149798.63
+San Francisco   224358.68
+San Jose        160010.27
+Stavern         116599.19
+Allentown       122138.14
+Barcelona       78411.86
+Bergamo         137955.72
+Bruxelles       74972.52
+Burbank         46084.64
+Cambridge       139244.0
+Cowes           78240.84
+Frankfurt       85171.59
+Kobenhavn       145041.6
+Koln            100306.58
+Lille           69052.41
+Madrid          1082551.44
+Manchester      157807.81
+Marseille       74936.14
+Newark          83228.19
+Osaka           67605.07
+Oslo            79224.23
+Paris           268944.68
+Reggio Emilia   142601.33
+San Rafael      654858.06
+Singapore       288488.41
+South Brisbane  59469.12
+Strasbourg      80438.48
+Toulouse        70488.44
+Vancouver       75238.92
+White Plains    85555.99
+Aaarhus         100595.55
+Burlingame      120783.07
+Chatswood       151570.98
+Gensve          117713.56
+Glendale        66423.77
+Las Vegas       82751.08
+London          124823.54
+Lule            75754.88
+NYC             560787.77org.apache.hive.jdbc.HiveDriver
+Nantes          204304.86
+Nashua          131685.3
+Oulu            104370.38
+Pasadena        104561.96
+Philadelphia    151189.13
+Reims           135042.94
+San Diego       87489.23
+Sevilla         54723.62
+Torino          94117.26
+Tsawassen       74634.85
+Versailles      64834.32
+------------------------------------------------------------------------
+# If we will see the output then values are sorted in 3 batches as there are 3 reducers and each reducer has given sorted output
+
+
+# setting property hive.mapred.mode =strict
+set hive.mapred.mode=strict
+# this proper restricts us to do full scan of table if table is too large
+# queries on partitioned tables are not permitted unless they include a partition filter in the WHERE clause
+# It restricts ORDER BY operation without a LIMIT clause ( since it uses a single reducer which can choke your processing if not handled properly.
+# The other type of query prevented is a Cartesian product
+
+
+# creating orc file from table
+create table sales_orc stored as ORC as select * from sales;
+
+# creating partition table (static or dynamic both are created in same manner)
+# parition key cannot be part of schema of partitioned table but it will appear in partitioned table
+create table sale_data(order_id int, sale_amount float, year int) stored as orc partitioned by (country string);
+
+# inserting data in partition table in static partition manner
+# in static partition manner, we specify each value of parition column to create different partition tables in similar fashion
+
+Note: Static partition is done using hive.mapred.mode=strict only.
+insert overwrite table sale_data partition(country='USA') select orderNumber,sales, year_id from sales where country='USA';
+insert overwrite table sale_data partition(country='France') select orderNumber,sales, year_id from sales where country='France';
+describe formatted sale_usa;
+# output:
+--------------------------------------------------------------------------
+# col_name              data_type               comment             
+order_id                int                                         
+sales                   float                                       
+year                    int                                         
+                 
+# Partition Information          
+# col_name              data_type               comment             
+country                 string                                      
+                 
+# Detailed Table Information             
+Database:               db                       
+OwnerType:              USER                     
+Owner:                  sangwanamit621           
+CreateTime:             Fri Sep 29 02:43:40 UTC 2023     
+LastAccessTime:         UNKNOWN                  
+Retention:              0                        
+Location:               hdfs://cluster-a723-m/user/hive/warehouse/db.db/sale_data         
+Table Type:             MANAGED_TABLE            
+Table Parameters:                
+        COLUMN_STATS_ACCURATE   {\"BASIC_STATS\":\"true\"}
+        bucketing_version       2                   
+        numFiles                1                   
+        numPartitions           1                   
+        numRows                 1004                
+        rawDataSize             12048               
+        totalSize               4983                
+        transient_lastDdlTime   1695955420          
+                 
+# Storage Information            
+SerDe Library:          org.apache.hadoop.hive.ql.io.orc.OrcSerde        
+InputFormat:            org.apache.hadoop.hive.ql.io.orc.OrcInputFormat  
+OutputFormat:           org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat         
+Compressed:             No                       
+Num Buckets:            -1                       
+Bucket Columns:         []                       
+Sort Columns:           []                       
+Storage Desc Params:             
+        serialization.format    1
+-------------------------------------------------------------------------------------------------------
+
+# In dataware house location table folder will store in this format
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 02:47 /user/hive/warehouse/db.db/sale_data/country=USA
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 02:52 /user/hive/warehouse/db.db/sale_data/country=France
+
+
+# Creating dynamic paritioned table
+
+for dynamic partitioning we have to enable this setting else we hive will not allow the query in which where clause is not mentioned
+set hive.exec.dynamic.partition.mode=nonstrict;
+
+# creating dynamic partition table
+create table sales_dynm_part(order_id int, sales float, year int) partitioned by(country string) stored as orc;
+
+# inserting data into table
+insert overwrite table sales_dynm_part partition(country) select ordernumber,sales,year_id,country from sales;
+
+# now the folders structure looks like this in hdfs hive warehouse
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Australia
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Austria
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Belgium
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Canada
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Denmark
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Finland
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=France
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Germany
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Ireland
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Italy
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Japan
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Norway
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Philippines
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Singapore
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Spain
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Sweden
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=Switzerland
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=UK
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 03:29 /user/hive/warehouse/db.db/sales_dynm_part/country=USA
+
+
+# Now we will run the same query on sales table where partitioning is not applied and sales_dynm_part table where partitioning is implemented and see the performance difference
+
+select year_id, round(sum(sales),2) as totalsalesamount from sales where country='Australia' group by year_id;
+# Output: when using normal table
++----------+-------------------+
+| year_id  | totalsalesamount  |
++----------+-------------------+
+| 2003     | 253134.45         |
+| 2004     | 232396.68         |
+| 2005     | 145091.97         |
++----------+-------------------+
+3 rows selected (19.861 seconds)
+
+select year,round(sum(sales),2) as totalsalesamount from sales_dynm_part where country='Australia' group by year;
+# Output: when using partition table
++-------+-------------------+
+| year  | totalsalesamount  |
++-------+-------------------+
+| 2003  | 253134.45         |
+| 2004  | 232396.68         |
+| 2005  | 145091.97         |
++-------+-------------------+
+3 rows selected (7.813 seconds)
+
+# There is performance difference of almost 3 times between non partition and partition table 
+
+
+# Creating partition using 2 columns
+create table sale_year_country (sales float, city string, product_line string, quantity int, unitprice float) partitioned by(year_id int, country string) stored as orc;
+
+# Inserting data into table
+insert overwrite table sale_year_country partition(year_id,country) select sales,city,productline,quantityordered,priceeach,year_id ,country from sales;
+
+#Note: we have to maintain the order of columns in select query else query will fail.
+
+
+Output Folder in hdfs:
+hdfs dfs -ls /user/hive/warehouse/db.db/sale_year_country
+Found 3 items
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2004
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2005
+
+hdfs dfs -ls /user/hive/warehouse/db.db/sale_year_country/year_id=2003/
+Found 16 items
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Australia
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Austria
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Belgium
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Canada
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Denmark
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Finland
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=France
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Germany
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Italy
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Norway
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Philippines
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Singapore
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Spain
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=Sweden
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=UK
+drwxr-xr-x   - sangwanamit621 hadoop          0 2023-09-29 13:27 /user/hive/warehouse/db.db/sale_year_country/year_id=2003/country=USA
+
+# getting sum of sales per year for country uk
+select year_id, sum(sales) as totalsalesamount from sale_year_country where country='UK' group by year_id;
+
+# Output
++----------+---------------------+
+| year_id  |  totalsalesamount   |
++----------+---------------------+
+| 2003     | 180421.54974365234  |
+| 2004     | 257656.099609375    |
+| 2005     | 40802.8095703125    |
++----------+---------------------+
+
+select country, sum(sales) as totalsalesamount from sale_year_country where year_id=2003 group by country;
+# Output
++--------------+---------------------+
+|   country    |  totalsalesamount   |
++--------------+---------------------+
+| Australia    | 253134.44958496094  |
+| Austria      | 82117.88024902344   |
+| Belgium      | 3348.4599609375     |
+| Canada       | 54609.50012207031   |
+| Denmark      | 99192.72009277344   |
+| Finland      | 111154.51013183594  |
+| France       | 312761.42205810547  |
+| Germany      | 70053.30981445312   |
+| Italy        | 140928.77081298828  |
+| Norway       | 196532.5994873047   |
+| Philippines  | 78086.98022460938   |
+| Singapore    | 165686.20056152344  |
+| Spain        | 405343.3922729492   |
+| Sweden       | 58459.92028808594   |
+| UK           | 180421.54974365234  |
+| USA          | 1305147.8818359375  |
++--------------+---------------------+
+
+select city, sum(sales) as totalsalesamount from sale_year_country where country='France' group by city, year_id order by totalsalesamount desc;
+
+#Output:
++-------------+---------------------+
+|    city     |  totalsalesamount   |
++-------------+---------------------+
+| Paris       | 170714.06018066406  |
+| Nantes      | 103402.08990478516  |
+| Lyon        | 101339.13977050781  |
+| Nantes      | 84342.4697265625    |
+| Versailles  | 64834.32019042969   |
+| Paris       | 63842.290466308594  |
+| Toulouse    | 55349.32080078125   |
+| Marseille   | 52481.840087890625  |
+| Reims       | 52029.07043457031   |
+| Reims       | 48895.59014892578   |
+| Lille       | 48874.28088378906   |
+| Strasbourg  | 44758.12951660156   |
+| Lyon        | 41535.11022949219   |
+| Strasbourg  | 35680.350341796875  |
+| Paris       | 34388.32958984375   |
+| Reims       | 34118.279541015625  |
+| Lille       | 20178.1298828125    |
+| Marseille   | 20136.859985351562  |
+| Nantes      | 16560.300048828125  |
+| Toulouse    | 15139.1201171875    |
+| Marseille   | 2317.43994140625    |
++-------------+---------------------+
+
+
+
+# Using UDFs in hive
+
+# Note: While using transform for udf, we can only pass columns inside the transform function. we cannot do 
+XXXX  select country,city,transform(sale,product_line) using 'python test.py' as udf_col from sale_year_country; XXXX
+# We will get error
+
+# adding a python file as resource which will contain udf 
+add file /home/amit/upper.py;
+
+# using the udf file
+select transform(city) using 'python upper.py' as cityUpper from sale_year_country limit 3;
+
+# output
++--------------+
+|  cityupper   |
++--------------+
+| NYC          |
+| NEWARK       |
+| BRIDGEWATER  |
+| CAMBRIDGE    |
+| ALLENTOWN    |
+| NYC          |
+| BURBANK      |
+| CAMBRIDGE    |
+| NEW HAVEN    |
+| SAN RAFAEL   |
++--------------+
+
+# adding a python file as resource which will contain udf 
+add file /home/amit/multicolumn_udf.py;
+
+# Passing multiple columns as input in udf function
+select transform(product_line,quantity,unitprice) using 'python multicolumn_udf.py' as (product_category string, sale_amount float) from sale_year_country limit 20;
+
++-------------------+--------------+
+| product_category  | sale_amount  |
++-------------------+--------------+
+| bike              | 2300.0       |
+| bike              | 2800.0       |
+| bike              | 3400.0       |
+| bike              | 3600.0       |
+| bike              | 4358.04      |
+| bike              | 4200.0       |
+| car               | 3500.0       |
+| car               | 2900.0       |
+| car               | 3400.0       |
+| car               | 4800.0       |
+| car               | 4000.0       |
+| car               | 2600.0       |
+| car               | 3200.0       |
+| bike              | 2200.0       |
+| bike              | 4400.0       |
+| bike              | 4000.0       |
+| bike              | 4700.0       |
+| bike              | 3400.0       |
+| bike              | 4500.0       |
+| bike              | 2000.0       |
++-------------------+--------------+
+
+
+
+# Bucketing in hive
+# In bucketing, we usually select a column using which we are going to perform joins or which has more number of unique/distinct values like id column of a table and creates buckets of data. Bucketing helps in optimising joins and less shuffling of data over networks during join operation.
+
+# Differences between bucketing and partition
+1. Partitioning is used to optimise the filter queries to aviod full table scans whereas bucketing is used to optimise the join operations between two tables
+2. Multilevel partitioning is possible like first partition on country column and then inside that partition by year whereas in bucketing we can go till single level,i.e., we can only use single column for bucketing
+3. Partition keys cannot be part of create table column declaration command whereas bucketing key must be part of create table's column declaration command
+4. In partitioning, there will be records related to a particular value of partition column like there will be all records related to partition key column country for value UK whereas in bucketing there will be no such situation. here we will dump records in buckets based on some hive hash function.
+
+# WE have to set the property to allow hive to enforce bucketing
+set hive.enforce.bucketing = True;
+
+
+# Creating bucketing tables
+# Note: While creating bucket tables, number of buckets of related tables should be multiple of each other like in emp table if we are creating 6 buckets then dept table must have 2 or 3 or 6 buckets while creating the dept bucket table. this helps hive in optimising the joins
+create table emp(id int,name string,salary int, dept_id int) row format delimited fields terminated by ',';
+load data local inpath '/home/sangwanamit621/emp_bucket.csv' into table emp;
+
+create table dept(id int,name string) row format delimited fields terminated by ',';
+load data local inpath '/home/sangwanamit621/dept_bucket.csv' into table dept;
+
+create table emp_bucket(id int,name string,salary int,dept_id int) clustered by(dept_id) sorted by(dept_id,id) into 2 buckets;
+insert overwrite table emp_bucket select * from emp;
+
+create table dept_bucket(id int,name string) clustered by(id) sorted by(id) into 2 buckets;
+insert overwrite table dept_bucket select * from dept;
+
+# Now we will check the files created in hdfs location
+# Normal dept table
+hdfs dfs -ls /user/hive/warehouse/db.db/dept
+Found 1 items
+-rw-r--r--   1 sangwanamit621 hadoop         30 2023-09-30 12:24 /user/hive/warehouse/db.db/dept/dept.csv
+
+# Bucket dept table
+hdfs dfs -ls /user/hive/warehouse/db.db/dept_bucket
+Found 2 items
+-rw-r--r--   1 sangwanamit621 hadoop         20 2023-09-30 12:26 /user/hive/warehouse/db.db/dept_bucket/000000_0
+-rw-r--r--   1 sangwanamit621 hadoop         10 2023-09-30 12:26 /user/hive/warehouse/db.db/dept_bucket/000001_0
+
+# Normal emp table
+hdfs dfs -ls /user/hive/warehouse/db.db/emp
+Found 1 items
+-rw-r--r--   1 sangwanamit621 hadoop         30 2023-09-30 12:24 /user/hive/warehouse/db.db/emp/emp.csv
+
+# Bucket emp table
+hdfs dfs -ls /user/hive/warehouse/db.db/emp_bucket
+Found 2 items
+-rw-r--r--   1 sangwanamit621 hadoop         76 2023-09-30 12:25 /user/hive/warehouse/db.db/emp_bucket/000000_0
+-rw-r--r--   1 sangwanamit621 hadoop         53 2023-09-30 12:25 /user/hive/warehouse/db.db/emp_bucket/000001_0
+
+# Data inside normal emp table
+hdfs dfs -cat /user/hive/warehouse/db.db/emp/emp.csv
+1,Amit,1000,1
+2,Arun,500,4
+3,Ram,900,1
+4,Ravi,700,2
+5,Raj,400,3
+6,Kim,700,2
+7,Rim,600,3
+8,Eve,300,2
+9,Manav,630,4
+10,Harsh,400,3
+
+# Data inside bucketed table emp buckets
+hdfs dfs -cat /user/hive/warehouse/db.db/emp_bucket/000000_0
+4Ravi7002
+6Kim7002
+8Eve3002
+5Raj4003
+7Rim6003
+10Harsh4003
+
+hdfs dfs -cat /user/hive/warehouse/db.db/emp_bucket/000001_0
+1Amit10001
+3Ram9001
+2Arun5004
+9Manav6304
+
+# Data inside normal dept table
+hdfs dfs -cat /user/hive/warehouse/db.db/dept/dept.csv
+1,IT
+2,Sales
+3,Executive
+4,HR
+
+# Data inside bucketed table dept buckets
+hdfs dfs -cat /user/hive/warehouse/db.db/dept_bucket/000000_0
+2Sales
+3Executive
+
+hdfs dfs -cat /user/hive/warehouse/db.db/dept_bucket/000001_0
+1IT
+4HR
+
+
+
+# joins in hive
+# In hive, we can perform joins(lefft,right,inner,full outer) in 4 different ways based on the size of data and approach we have followed while creating the tables.
+4 types of ways of joins in hive:
+#1. Reduce side join: here join operation is performed on reducer side and there will be only one reducer in this type of join. We can use this join method if we have small sized datasets as joining will happen on single reducer and if datasets will be large than data/worker node will collapse or perform very poorly.
+number of reducers: 1
+To perform Reduce side join, we have to set this property in hive:
+set hive.auto.convert.join=False;
+
+#2. Map side join or Broadcast join: We perform join operations in mapper task itself. We can use this method if atleast one of dataset is small so that we can send/broadcast this dataset to all the mappers running on different data/worker nodes. this join is also known as broadcast join as we are broadcasting the smaller dataset to all the mapper tasks. In this method, number of reducers will be 0 as there's no reduce operator and we have done joining part on mapper side itself.
+number of reducers: 0
+# To perform Map side join, we have to set this property:
+set hive.auto.convert.join=True; (Default set property by hive)
+
+#3. Bucket Map join: This method is used when we have used bucketing while creating tables and here hive sends relevant buckets of different tables in different mapper tasks for example if one mapper task is doing oprations related to 1 to 10 ids and there are 1-4 ids connected with other table then that bucket where 1-4 ids are present only that bucket is send to the mapper task instead of whole dataset. Lets take emp_bucket and dept_bucket tables and records for ids 4,6,5,7,10 are processed in one mapper task and these records are related to dept_id 1 and 4 so dept_id bucket 000001_0 will send to this mapper.
+number of reducers: 0
+
+To perform Bucket Map join, we have to set these properties:
+set hive.auto.convert.join=True;
+set hive.optimize.bucketmapjoin=true;
+
+#4 Sorted Merge Bucket Map join: This method is used when we have used sorted option along with clustering/bucketing while creating tables. 
+To perform Sorted Merge Bucket Map join, we have to set these properties:
+set hive.auto.convert.join=true;
+set hive.auto.convert.sortmerge.join=true;
+set hive.enforce.sortmergebucketmapjoin=false;
+set hive.optimize.bucketmapjoin=true;
+set hive.optimize.bucketmapjoin.sortedmerge=true;
+
+# inner join query
+select emp.id,emp.name,dept.name from emp inner join dept on emp.dept_id=dept.id;
+
+
+
+
+
