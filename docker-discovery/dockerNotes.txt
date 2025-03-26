@@ -72,7 +72,7 @@ docker-compose is to manage multiple container using single file. Suppose for ou
 then we have to manage container for each application. To make this easy, we can define docker-compose.yml file where we define every requirement in this
 file for each service and run this single file to manage them.
 
-version: "3.7" -> we define the version of docker-compose.yml file
+version: "3.7" -> we define the version of docker-compose.yml file to tell which docker version syntax and rules to follow
 services: -> we define the services which we want to run and their configrations and steps
 there are similar commands we use in Dockerfile, but they become single word like in Dockerfile we say -p here we use ports, in build we define Dockerfile path
 here as well we use build and give Dockerfile path to build the image
